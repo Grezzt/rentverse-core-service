@@ -136,6 +136,26 @@ services:
     networks:
       - rentverse-network
 
+  # Ngrok - Public URL Tunnel
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: rentverse-ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "app:3000"
+      - "--log=stdout"
+      - "--authtoken=${NGROK_AUTHTOKEN}"
+    ports:
+      - "4040:4040" # Ngrok Web Interface
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - rentverse-network
+
 # Networks
 networks:
   rentverse-network:

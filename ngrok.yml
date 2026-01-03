@@ -1,0 +1,13 @@
+version: "2"
+tunnels:
+  rentverse-backend:
+    addr: app:3000
+    proto: http
+    inspect: true
+  rentverse-studio:
+    addr: studio:5555
+    proto: http
+    inspect: false
+web_addr: 0.0.0.0:4040
+log_level: info
+log_format: json

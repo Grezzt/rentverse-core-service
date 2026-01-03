@@ -159,10 +159,10 @@ if (process.env.NODE_ENV !== 'test' && swaggerSpecs && swaggerUi) {
       customCss: `
         .swagger-ui .topbar { display: none }
         .swagger-ui .info .title { color: #1976d2 }
-        .server-info { 
-          background: #e3f2fd; 
-          padding: 10px; 
-          border-radius: 5px; 
+        .server-info {
+          background: #e3f2fd;
+          padding: 10px;
+          border-radius: 5px;
           margin: 10px 0;
           border-left: 4px solid #1976d2;
         }
@@ -200,10 +200,10 @@ if (process.env.NODE_ENV !== 'test' && swaggerMobileSpecs) {
       customCss: `
         .swagger-ui .topbar { display: none }
         .swagger-ui .info .title { color: #4caf50 }
-        .server-info { 
-          background: #e8f5e9; 
-          padding: 10px; 
-          border-radius: 5px; 
+        .server-info {
+          background: #e8f5e9;
+          padding: 10px;
+          border-radius: 5px;
           margin: 10px 0;
           border-left: 4px solid #4caf50;
         }

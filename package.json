@@ -44,6 +44,10 @@
   ],
   "author": "jekoyu",
   "license": "ISC",
+  "packageManager": "pnpm@10.13.1",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.956.0",
     "@aws-sdk/lib-storage": "^3.956.0",

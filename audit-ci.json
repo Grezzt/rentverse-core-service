@@ -1,0 +1,11 @@
+{
+  "moderate": true,
+  "allowlist": [],
+  "report-type": "full",
+  "package-manager": "pnpm",
+  "skip-dev": false,
+  "path": "./",
+  "show-found": true,
+  "show-not-found": false,
+  "registry": "https://registry.npmjs.org"
+}

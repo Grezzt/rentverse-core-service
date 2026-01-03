@@ -1,0 +1,54 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Print header
+printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════════╗${NC}\n"
+printf "${BLUE}║${WHITE}                           🔧 PRE-COMMIT HOOKS                               ${BLUE}║${NC}\n"
+printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════════╝${NC}\n"
+printf "\n"
+
+printf "${CYAN}🎯 Processing staged files...${NC}\n"
+printf "${YELLOW}⏳ Running linting and formatting on changed files...${NC}\n"
+printf "\n"
+
+# Run lint-staged to check and fix only staged files
+npx lint-staged
+
+if [ $? -ne 0 ]; then
+  printf "\n"
+  printf "${RED}╔══════════════════════════════════════════════════════════════════════════════╗${NC}\n"
+  printf "${RED}║${WHITE}                                ❌ FAILURE                                   ${RED}║${NC}\n"
+  printf "${RED}╚══════════════════════════════════════════════════════════════════════════════╝${NC}\n"
+  printf "${RED}💥 Pre-commit validation failed!${NC}\n"
+  printf "\n"
+  printf "${YELLOW}💡 Tips:${NC}\n"
+  printf "${WHITE}   • Check the errors above and fix them manually${NC}\n"
+  printf "${WHITE}   • Some issues might be auto-fixed already${NC}\n"
+  printf "${WHITE}   • Re-stage your files: ${CYAN}git add .${NC}\n"
+  printf "\n"
+  printf "${RED}🚫 Commit aborted. Please fix the issues and try again.${NC}\n"
+  exit 1
+fi
+
+printf "\n"
+printf "${GREEN}╔══════════════════════════════════════════════════════════════════════════════╗${NC}\n"
+printf "${GREEN}║${WHITE}                               ✅ SUCCESS                                    ${GREEN}║${NC}\n"
+printf "${GREEN}╚══════════════════════════════════════════════════════════════════════════════╝${NC}\n"
+printf "${GREEN}🎊 Pre-commit validation completed successfully!${NC}\n"
+printf "${CYAN}📁 Your staged files are clean and ready to commit.${NC}\n"
+printf "\n"
+printf "${PURPLE}🔍 What was checked:${NC}\n"
+printf "${WHITE}   ✓ Code linting (ESLint)${NC}\n"
+printf "${WHITE}   ✓ Code formatting (Prettier)${NC}\n"
+printf "${WHITE}   ✓ File quality standards${NC}\n"
+printf "\n"

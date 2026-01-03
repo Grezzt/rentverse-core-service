@@ -1,0 +1,462 @@
+/**
+ * @swagger
+ * tags:
+ *   - name: Mobile - Users
+ *     description: User management endpoints for mobile app
+ */
+
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
+const { auth } = require('../../middleware/auth');
+const { prisma } = require('../../config/database');
+
+const router = express.Router();
+
+/**
+ * @swagger
+ * /api/v1/m/users/profile:
+ *   get:
+ *     summary: Get current user profile (Mobile)
+ *     tags: [Mobile - Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        name: true,
+        dateOfBirth: true,
+        phone: true,
+        profilePicture: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            properties: true,
+            tenantBookings: true,
+            ownerBookings: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/m/users/profile:
+ *   put:
+ *     summary: Update current user profile (Mobile)
+ *     tags: [Mobile - Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               phone:
+ *                 type: string
+ *               profilePicture:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+router.put(
+  '/profile',
+  auth,
+  [
+    body('firstName').optional().trim().notEmpty(),
+    body('lastName').optional().trim().notEmpty(),
+    body('dateOfBirth').optional().isISO8601(),
+    body('phone').optional().trim(),
+    body('profilePicture').optional().trim(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const { firstName, lastName, dateOfBirth, phone, profilePicture } =
+        req.body;
+
+      const updateData = {};
+      if (firstName) updateData.firstName = firstName;
+      if (lastName) updateData.lastName = lastName;
+      if (firstName || lastName) {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: { firstName: true, lastName: true },
+        });
+        updateData.name = `${firstName || currentUser.firstName} ${lastName || currentUser.lastName}`;
+      }
+      if (dateOfBirth) updateData.dateOfBirth = new Date(dateOfBirth);
+      if (phone !== undefined) updateData.phone = phone;
+      if (profilePicture !== undefined)
+        updateData.profilePicture = profilePicture;
+
+      const user = await prisma.user.update({
+        where: { id: req.user.id },
+        data: updateData,
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          name: true,
+          dateOfBirth: true,
+          phone: true,
+          profilePicture: true,
+          role: true,
+          isActive: true,
+          updatedAt: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: user,
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update profile',
+        error:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/m/users/change-password:
+ *   post:
+ *     summary: Change user password (Mobile)
+ *     tags: [Mobile - Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *       400:
+ *         description: Bad request or incorrect current password
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  '/change-password',
+  auth,
+  [
+    body('currentPassword').notEmpty(),
+    body('newPassword').isLength({ min: 6 }),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      // Get user with password
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { password: true },
+      });
+
+      if (!user.password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot change password for OAuth accounts',
+        });
+      }
+
+      // Verify current password
+      const isValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect',
+        });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { password: hashedPassword },
+      });
+
+      res.json({
+        success: true,
+        message: 'Password changed successfully',
+      });
+    } catch (error) {
+      console.error('Change password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to change password',
+        error:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/v1/m/users/favorites:
+ *   get:
+ *     summary: Get user's favorite properties (Mobile)
+ *     tags: [Mobile - Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Favorites retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/favorites', auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [favorites, total] = await Promise.all([
+      prisma.propertyFavorite.findMany({
+        where: { userId: req.user.id },
+        include: {
+          property: {
+            include: {
+              propertyType: true,
+              owner: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePicture: true,
+                },
+              },
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.propertyFavorite.count({
+        where: { userId: req.user.id },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        favorites: favorites.map(f => f.property),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get favorites error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get favorites',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/m/users/bookings:
+ *   get:
+ *     summary: Get user's bookings (Mobile)
+ *     tags: [Mobile - Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, APPROVED, REJECTED, CANCELLED, COMPLETED]
+ *     responses:
+ *       200:
+ *         description: Bookings retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/bookings', auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const { status } = req.query;
+
+    const where = { tenantId: req.user.id };
+    if (status) where.status = status;
+
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include: {
+          property: {
+            include: {
+              propertyType: true,
+              owner: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePicture: true,
+                  phone: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.booking.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        bookings,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get bookings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get bookings',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+module.exports = router;

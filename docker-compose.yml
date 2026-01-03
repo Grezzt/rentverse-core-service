@@ -1,0 +1,160 @@
+# Docker Compose Configuration for Rentverse Backend
+services:
+  # Rentverse Backend Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rentverse-backend
+    restart: unless-stopped
+
+    # Environment variables (load from .env file)
+    env_file:
+      - .env
+
+    # Additional environment variables
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://rentverse:rentverse@db:5432/rentverse?schema=public
+
+    # Ports
+    ports:
+      - "3000:3000"
+
+    # Volumes for persistent data
+    volumes:
+      # Prisma migrations persistence (search local)
+      - ./prisma:/app/prisma:ro
+
+    # Network
+    networks:
+      - rentverse-network
+
+    # Health check
+    healthcheck:
+      test: [ 'CMD', 'node', '-e', "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Depends on database migration
+    # Using local prisma binary to avoid permission issues
+    # Using db push --accept-data-loss since migrations might be missing or conflicting in dev env
+    command: sh -c "./node_modules/.bin/prisma db push --accept-data-loss && node index.js"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Database Service (PostGIS required)
+  db:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: rentverse-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rentverse
+      POSTGRES_PASSWORD: rentverse
+      POSTGRES_DB: rentverse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rentverse-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rentverse" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Caddy Reverse Proxy
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: rentverse-caddy
+    restart: unless-stopped
+
+    # Ports
+    ports:
+      - '80:80' # HTTP
+      - '443:443' # HTTPS
+      - '443:443/udp' # HTTP/3
+
+    # Volumes
+    volumes:
+      # Caddyfile configuration
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Caddy data for certificates
+      - caddy_data:/data
+      # Caddy config
+      - caddy_config:/config
+
+    # Network
+    networks:
+      - rentverse-network
+
+    # Depends on app
+    depends_on:
+      app:
+        condition: service_healthy
+
+    # Health check
+    healthcheck:
+      test: [ 'CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost/health' ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Prisma Studio (Database GUI)
+  studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rentverse-studio
+    command: sh -c "npx prisma studio --port 5555 --hostname 0.0.0.0"
+    user: root
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    environment:
+      # Force connection to the docker database service
+      - DATABASE_URL=postgresql://rentverse:rentverse@db:5432/rentverse?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rentverse-network
+
+# Networks
+networks:
+  rentverse-network:
+    driver: bridge
+    name: rentverse-network
+
+# Volumes
+volumes:
+  # Caddy data (SSL certificates)
+  caddy_data:
+    name: rentverse_caddy_data
+    driver: local
+
+  # Caddy config
+  caddy_config:
+    name: rentverse_caddy_config
+    driver: local
+
+  # Database data
+  postgres_data:
+    name: rentverse_postgres_data
+    driver: local

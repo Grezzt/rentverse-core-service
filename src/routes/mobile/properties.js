@@ -581,6 +581,115 @@ router.get('/', optionalAuth, async (req, res) => {
 
 /**
  * @swagger
+ * /api/v1/m/properties/nearby:
+ *   get:
+ *     summary: Get nearby properties (Mobile)
+ *     tags: [Mobile - Properties]
+ *     parameters:
+ *       - in: query
+ *         name: latitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: longitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: radius
+ *         schema:
+ *           type: number
+ *           default: 10
+ *         description: Radius in kilometers
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Nearby properties retrieved successfully
+ *       400:
+ *         description: Latitude and longitude are required
+ */
+router.get('/nearby', optionalAuth, async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 10, limit = 20 } = req.query;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required',
+      });
+    }
+
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const rad = parseFloat(radius);
+    const lim = parseInt(limit);
+
+    // Get all available properties with coordinates
+    const properties = await prisma.property.findMany({
+      where: {
+        status: 'APPROVED',
+        isAvailable: true,
+        latitude: { not: null },
+        longitude: { not: null },
+      },
+      include: {
+        propertyType: true,
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profilePicture: true,
+          },
+        },
+      },
+    });
+
+    // Calculate distance and filter
+    const nearbyProperties = properties
+      .map(property => {
+        const distance = calculateDistance(
+          lat,
+          lng,
+          property.latitude,
+          property.longitude
+        );
+        return {
+          ...property,
+          distance: Math.round(distance * 100) / 100,
+          mapsUrl: `https://www.google.com/maps?q=${property.latitude},${property.longitude}`,
+        };
+      })
+      .filter(p => p.distance <= rad)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, lim);
+
+    res.json({
+      success: true,
+      data: {
+        properties: nearbyProperties,
+        count: nearbyProperties.length,
+        searchLocation: { latitude: lat, longitude: lng },
+        searchRadius: rad,
+      },
+    });
+  } catch (error) {
+    console.error('Get nearby properties error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get nearby properties',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/v1/m/properties/{id}:
  *   get:
  *     summary: Get property by ID (Mobile)
@@ -902,115 +1011,6 @@ router.post('/:id/rate', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to submit rating',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/v1/m/properties/nearby:
- *   get:
- *     summary: Get nearby properties (Mobile)
- *     tags: [Mobile - Properties]
- *     parameters:
- *       - in: query
- *         name: latitude
- *         required: true
- *         schema:
- *           type: number
- *       - in: query
- *         name: longitude
- *         required: true
- *         schema:
- *           type: number
- *       - in: query
- *         name: radius
- *         schema:
- *           type: number
- *           default: 10
- *         description: Radius in kilometers
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Nearby properties retrieved successfully
- *       400:
- *         description: Latitude and longitude are required
- */
-router.get('/nearby', optionalAuth, async (req, res) => {
-  try {
-    const { latitude, longitude, radius = 10, limit = 20 } = req.query;
-
-    if (!latitude || !longitude) {
-      return res.status(400).json({
-        success: false,
-        message: 'Latitude and longitude are required',
-      });
-    }
-
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-    const rad = parseFloat(radius);
-    const lim = parseInt(limit);
-
-    // Get all available properties with coordinates
-    const properties = await prisma.property.findMany({
-      where: {
-        status: 'APPROVED',
-        isAvailable: true,
-        latitude: { not: null },
-        longitude: { not: null },
-      },
-      include: {
-        propertyType: true,
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            profilePicture: true,
-          },
-        },
-      },
-    });
-
-    // Calculate distance and filter
-    const nearbyProperties = properties
-      .map(property => {
-        const distance = calculateDistance(
-          lat,
-          lng,
-          property.latitude,
-          property.longitude
-        );
-        return {
-          ...property,
-          distance: Math.round(distance * 100) / 100,
-          mapsUrl: `https://www.google.com/maps?q=${property.latitude},${property.longitude}`,
-        };
-      })
-      .filter(p => p.distance <= rad)
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, lim);
-
-    res.json({
-      success: true,
-      data: {
-        properties: nearbyProperties,
-        count: nearbyProperties.length,
-        searchLocation: { latitude: lat, longitude: lng },
-        searchRadius: rad,
-      },
-    });
-  } catch (error) {
-    console.error('Get nearby properties error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get nearby properties',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }

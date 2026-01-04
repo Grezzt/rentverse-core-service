@@ -1,4 +1,4 @@
-version: "2"
+version: '2'
 tunnels:
   rentverse-backend:
     addr: app:3000

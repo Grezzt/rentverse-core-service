@@ -20,7 +20,7 @@ services:
 
     # Ports
     ports:
-      - "3000:3000"
+      - '3000:3000'
 
     # Volumes for persistent data
     volumes:
@@ -33,7 +33,13 @@ services:
 
     # Health check
     healthcheck:
-      test: [ 'CMD', 'node', '-e', "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -72,7 +78,7 @@ services:
     networks:
       - rentverse-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U rentverse" ]
+      test: ['CMD-SHELL', 'pg_isready -U rentverse']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -109,7 +115,15 @@ services:
 
     # Health check
     healthcheck:
-      test: [ 'CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost/health' ]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -124,7 +138,7 @@ services:
     command: sh -c "npx prisma studio --port 5555 --hostname 0.0.0.0"
     user: root
     ports:
-      - "5555:5555"
+      - '5555:5555'
     env_file:
       - .env
     environment:
@@ -142,12 +156,12 @@ services:
     container_name: rentverse-ngrok
     restart: unless-stopped
     command:
-      - "http"
-      - "app:3000"
-      - "--log=stdout"
-      - "--authtoken=${NGROK_AUTHTOKEN}"
+      - 'http'
+      - 'app:3000'
+      - '--log=stdout'
+      - '--authtoken=${NGROK_AUTHTOKEN}'
     ports:
-      - "4040:4040" # Ngrok Web Interface
+      - '4040:4040' # Ngrok Web Interface
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
     depends_on:

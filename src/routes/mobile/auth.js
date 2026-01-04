@@ -289,7 +289,8 @@ router.post(
       if (!user.password) {
         return res.status(401).json({
           success: false,
-          message: 'This account uses social login. Please sign in with Google, Facebook, or Apple.',
+          message:
+            'This account uses social login. Please sign in with Google, Facebook, or Apple.',
         });
       }
 
@@ -621,7 +622,5 @@ router.post('/google', async (req, res) => {
     });
   }
 });
-
-
 
 module.exports = router;

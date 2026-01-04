@@ -526,14 +526,6 @@ router.get(
   }
 );
 
-
-
-
-
-
-
-
-
 /**
  * @swagger
  * /api/v1/auth/oauth/link:
@@ -589,9 +581,7 @@ router.post('/oauth/link', async (req, res) => {
       });
     }
 
-    if (
-      !['google'].includes(provider)
-    ) {
+    if (!['google'].includes(provider)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid provider',
@@ -697,9 +687,7 @@ router.post('/oauth/unlink', async (req, res) => {
       });
     }
 
-    if (
-      !['google'].includes(provider)
-    ) {
+    if (!['google'].includes(provider)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid provider',

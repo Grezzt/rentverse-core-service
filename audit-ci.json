@@ -2,7 +2,7 @@
   "moderate": true,
   "allowlist": [],
   "report-type": "full",
-  "package-manager": "pnpm",
+  "package-manager": "npm",
   "skip-dev": false,
   "path": "./",
   "show-found": true,

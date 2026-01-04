@@ -219,6 +219,48 @@ class UploadController {
       });
     }
   }
+
+  /**
+   * Get video thumbnail
+   */
+  async getVideoThumbnail(req, res) {
+    try {
+      const { publicId } = req.params;
+
+      if (!publicId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Public ID is required',
+        });
+      }
+
+      // Generate thumbnail URL for video
+      const thumbnailUrl = storageService.getVideoThumbnailUrl
+        ? await storageService.getVideoThumbnailUrl(publicId)
+        : null;
+
+      if (!thumbnailUrl) {
+        return res.status(404).json({
+          success: false,
+          message: 'Video thumbnail not available',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          publicId,
+          thumbnailUrl,
+        },
+      });
+    } catch (error) {
+      console.error('Get video thumbnail error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get video thumbnail',
+      });
+    }
+  }
 }
 
 module.exports = new UploadController();

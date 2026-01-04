@@ -24,7 +24,7 @@ printf "${BLUE}└────────────────────�
 printf "${YELLOW}⏳ Running ESLint and Prettier checks...${NC}\n"
 printf "\n"
 
-pnpm run code:check
+npm run code:check
 
 if [ $? -ne 0 ]; then
   printf "\n"
@@ -34,9 +34,9 @@ if [ $? -ne 0 ]; then
   printf "${RED}💥 Code quality check failed!${NC}\n"
   printf "\n"
   printf "${YELLOW}💡 Quick Fix Commands:${NC}\n"
-  printf "${WHITE}   • Auto-fix linting: ${CYAN}pnpm run lint:fix${NC}\n"
-  printf "${WHITE}   • Auto-format code: ${CYAN}pnpm run format${NC}\n"
-  printf "${WHITE}   • Fix both at once: ${CYAN}pnpm run code:fix${NC}\n"
+  printf "${WHITE}   • Auto-fix linting: ${CYAN}npm run lint:fix${NC}\n"
+  printf "${WHITE}   • Auto-format code: ${CYAN}npm run format${NC}\n"
+  printf "${WHITE}   • Fix both at once: ${CYAN}npm run code:fix${NC}\n"
   printf "\n"
   printf "${RED}🚫 Push aborted. Please fix the issues above and try again.${NC}\n"
   exit 1
@@ -52,7 +52,7 @@ printf "${BLUE}└────────────────────�
 printf "${YELLOW}⏳ Scanning for security vulnerabilities...${NC}\n"
 printf "\n"
 
-pnpm run security:check
+npm run security:check
 
 if [ $? -ne 0 ]; then
   printf "\n"
@@ -62,8 +62,8 @@ if [ $? -ne 0 ]; then
   printf "${RED}🚨 Security vulnerabilities detected!${NC}\n"
   printf "\n"
   printf "${YELLOW}🛠️  Remediation Steps:${NC}\n"
-  printf "${WHITE}   • Try auto-fix: ${CYAN}pnpm audit --fix${NC}\n"
-  printf "${WHITE}   • Manual review: ${CYAN}pnpm audit${NC}\n"
+  printf "${WHITE}   • Try auto-fix: ${CYAN}npm audit fix${NC}\n"
+  printf "${WHITE}   • Manual review: ${CYAN}npm audit${NC}\n"
   printf "${WHITE}   • Documentation: ${PURPLE}https://docs.npmjs.com/auditing-package-dependencies-for-security-vulnerabilities${NC}\n"
   printf "\n"
   printf "${RED}🚫 Push aborted for security reasons. Please address vulnerabilities first.${NC}\n"

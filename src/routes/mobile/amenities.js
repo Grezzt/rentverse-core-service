@@ -58,20 +58,9 @@ router.get('/', async (req, res) => {
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
-    // Group by category
-    const groupedAmenities = amenities.reduce((acc, amenity) => {
-      const cat = amenity.category || 'Other';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(amenity);
-      return acc;
-    }, {});
-
     res.json({
       success: true,
-      data: {
-        amenities,
-        grouped: groupedAmenities,
-      },
+      data: amenities,
     });
   } catch (error) {
     console.error('Get amenities error:', error);
@@ -101,9 +90,17 @@ router.get('/categories', async (req, res) => {
       orderBy: { category: 'asc' },
     });
 
+    const categoryList = categories
+      .map(c => c.category)
+      .filter(Boolean)
+      .map(name => ({
+        id: name.toLowerCase().replace(/\s+/g, '-'),
+        name: name,
+      }));
+
     res.json({
       success: true,
-      data: categories.map(c => c.category).filter(Boolean),
+      data: categoryList,
     });
   } catch (error) {
     console.error('Get amenity categories error:', error);

@@ -1,4 +1,4 @@
-const fileUploadService = require('../utils/fileUpload');
+const storageService = require('../utils/storageService');
 
 class UploadController {
   /**
@@ -13,9 +13,8 @@ class UploadController {
         });
       }
 
-      const optimize = req.body.optimize !== 'false'; // Default to true
-
-      const result = await fileUploadService.uploadFile(req.file, optimize);
+      const folder = req.body.folder || 'uploads';
+      const result = await storageService.uploadFile(req.file, folder);
 
       res.status(200).json({
         success: true,
@@ -43,17 +42,19 @@ class UploadController {
         });
       }
 
-      const optimize = req.body.optimize !== 'false'; // Default to true
-
-      const results = await fileUploadService.uploadMultipleFiles(
+      const folder = req.body.folder || 'uploads';
+      const results = await storageService.uploadMultipleFiles(
         req.files,
-        optimize
+        folder
       );
 
       res.status(200).json({
         success: true,
         message: `${results.length} files uploaded successfully`,
-        data: results,
+        data: {
+          files: results,
+          count: results.length,
+        },
       });
     } catch (error) {
       console.error('Upload multiple files error:', error);
@@ -76,24 +77,17 @@ class UploadController {
         });
       }
 
-      const results = await fileUploadService.uploadMultipleFiles(
+      const results = await storageService.uploadMultipleFiles(
         req.files,
-        true
+        'properties'
       );
-
-      // Create thumbnails for each image
-      const thumbnailPromises = req.files.map(file =>
-        fileUploadService.createThumbnail(file)
-      );
-
-      const thumbnails = await Promise.all(thumbnailPromises);
 
       res.status(200).json({
         success: true,
         message: `${results.length} property images uploaded successfully`,
         data: {
           images: results,
-          thumbnails: thumbnails,
+          count: results.length,
         },
       });
     } catch (error) {
@@ -117,19 +111,13 @@ class UploadController {
         });
       }
 
-      // Upload original avatar
-      const avatar = await fileUploadService.uploadFile(req.file, true);
-
-      // Create thumbnail
-      const thumbnail = await fileUploadService.createThumbnail(req.file);
+      // Upload avatar to profiles folder
+      const avatar = await storageService.uploadFile(req.file, 'profiles');
 
       res.status(200).json({
         success: true,
         message: 'Avatar uploaded successfully',
-        data: {
-          avatar,
-          thumbnail,
-        },
+        data: avatar,
       });
     } catch (error) {
       console.error('Upload avatar error:', error);
@@ -145,21 +133,22 @@ class UploadController {
    */
   async deleteFile(req, res) {
     try {
-      const { publicId } = req.params;
+      const { identifier } = req.params; // publicId for Cloudinary, key for S3
       const { resourceType = 'image' } = req.body;
 
-      if (!publicId) {
+      if (!identifier) {
         return res.status(400).json({
           success: false,
-          message: 'Public ID is required',
+          message: 'File identifier is required',
         });
       }
 
-      const result = await fileUploadService.deleteFile(publicId, resourceType);
+      const result = await storageService.deleteFile(identifier, resourceType);
 
       res.status(200).json({
         success: true,
-        message: result.message,
+        message: 'File deleted successfully',
+        data: result,
       });
     } catch (error) {
       console.error('Delete file error:', error);
@@ -175,20 +164,28 @@ class UploadController {
    */
   async deleteMultipleFiles(req, res) {
     try {
-      const { publicIds } = req.body;
+      const { identifiers, resourceType = 'image' } = req.body;
 
-      if (!publicIds || !Array.isArray(publicIds) || publicIds.length === 0) {
+      if (
+        !identifiers ||
+        !Array.isArray(identifiers) ||
+        identifiers.length === 0
+      ) {
         return res.status(400).json({
           success: false,
-          message: 'Public IDs array is required',
+          message: 'File identifiers array is required',
         });
       }
 
-      const result = await fileUploadService.deleteMultipleFiles(publicIds);
+      const result = await storageService.deleteMultipleFiles(
+        identifiers,
+        resourceType
+      );
 
       res.status(200).json({
         success: true,
-        message: result.message,
+        message: `${identifiers.length} files deleted successfully`,
+        data: result,
       });
     } catch (error) {
       console.error('Delete multiple files error:', error);
@@ -200,36 +197,25 @@ class UploadController {
   }
 
   /**
-   * Get video thumbnail
+   * Get storage info
    */
-  async getVideoThumbnail(req, res) {
+  async getStorageInfo(req, res) {
     try {
-      const { publicId } = req.params;
-      const { startOffset = '1s' } = req.query;
-
-      if (!publicId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Public ID is required',
-        });
-      }
-
-      const thumbnailUrl = await fileUploadService.getVideoThumbnail(publicId, {
-        startOffset,
-      });
-
       res.status(200).json({
         success: true,
-        message: 'Video thumbnail generated successfully',
         data: {
-          thumbnailUrl,
+          provider: storageService.getProvider(),
+          maxFileSize: storageService.getMaxFileSize(),
+          maxFileSizeMB: storageService.getMaxFileSize() / 1024 / 1024,
+          allowedImageTypes: storageService.getAllowedImageTypes(),
+          allowedFileTypes: storageService.getAllowedFileTypes(),
         },
       });
     } catch (error) {
-      console.error('Get video thumbnail error:', error);
+      console.error('Get storage info error:', error);
       res.status(500).json({
         success: false,
-        message: error.message || 'Video thumbnail generation failed',
+        message: error.message || 'Failed to get storage info',
       });
     }
   }
